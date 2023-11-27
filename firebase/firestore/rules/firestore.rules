@@ -2,8 +2,38 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+    // ユーザーコレクション
+    match /users/{userId} {
+      allow read, write: if isAuthorizedUser(userId);
+    }
+    
+    // 健康データコレクションのセキュリティルール
+    match /user_health_data/{userId}/{document=**} {
+      allow read: if isAllowedToRead(userId)
+      allow create: if isAllowedToWrite(userId);
+    }
+    
+    // アクセス許可コレクションのセキュリティルール
+    match /access_permissions/{userId} {
+      allow read, write: if isAuthorizedUser(userId);
+    }
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAuthorizedUser(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function isAllowedToRead(userId) {
+      // アクセス許可情報を読み取り、ユーザーがアクセス権限を持っているかどうかを検証
+      return get(/databases/$(database)/documents/access_permissions/$(userId)).data.access == "read";
+    }
+
+    function isAllowedToWrite(userId) {
+      // アクセス許可情報を読み取り、ユーザーがアクセス権限を持っているかどうかを検証
+      return get(/databases/$(database)/documents/access_permissions/$(userId)).data.access == "write";
     }
   }
 }
