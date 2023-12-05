@@ -6,21 +6,26 @@ import {
 import { readFileSync } from "fs";
 
 let testEnv: RulesTestEnvironment;
-const PROJECT_ID_DEV = process.env.PROJECT_ID
+const PROJECT_ID = process.env.PROJECT_ID;
+
 export const initializeTestEnvironment = async () => {
-  testEnv = await _initializeTestEnvironment({
-    projectId: PROJECT_ID,
-    firestore: {
-      rules: readFileSync("./firestore/firestore.rules", "utf8"),
-      host: "127.0.0.1",
-      port: 9081,
-    },
-    storage: {
-      rules: readFileSync('./storage/storage.rules', 'utf8'),
-      host: "127.0.0.1",
-      port: 9082,
-    },
-  });
+  try {
+    testEnv = await _initializeTestEnvironment({
+      projectId: PROJECT_ID,
+      firestore: {
+        rules: readFileSync("./firestore/firestore.rules", "utf8"),
+        host: "127.0.0.1",
+        port: 9081,
+      },
+      storage: {
+        rules: readFileSync("./storage/storage.rules", "utf8"),
+        host: "127.0.0.1",
+        port: 9082,
+      },
+    });
+  } catch (err) {
+    console.error("Error initializing test environment: ", err);
+  }
 };
 
 export const getTestEnv = () => testEnv;
@@ -32,27 +37,34 @@ export const getStorage = (context: RulesTestContext) => {
   return context.storage();
 };
 
-export type WithId<T> = { id: string, data: T };
+export class WithId<T> {
+  constructor(public id: string, public data: T) { }
 
+  getId(): string {
+    return this.id;
+  }
 
-type ConvertPropertiesForFirebase<T> = {
-    [K in keyof T]: T[K] extends Int | Float | Double ? number : T[K];
-};
+  getData(): T {
+    return this.data;
+  }
 
-export function WithoutId<T>(obj: WithId<T>): ConvertPropertiesForFirebase<T> {
-    const newData: any = {};
-    for (const key in obj.data) {
-        const value = obj.data[key];
-        if (value instanceof Int || value instanceof Float || value instanceof Double) {
-            newData[key] = value.getValue();
-        } else {
-            newData[key] = value;
-        }
-    }
-    return  newData ;
+  updateData<K extends keyof T, V extends T[K]>(
+    key: K,
+    value: V,
+  ): WithId<Omit<T, K> & Record<K, V>> {
+    return new WithId<Omit<T, K> & Record<K, V>>(this.id, {
+      ...this.data as any,
+      [key]: value,
+    });
+  }
+
+  updateDataIgnoreType<K extends keyof T, V extends T[K]>(
+    key: K,
+    value: V,
+  ): WithId<Omit<T, K> & Record<K, V>> {
+    return new WithId<Omit<T, K> & Record<K, V>>(this.id, {
+      ...this.data as any,
+      [key]: value,
+    });
+  }
 }
-export type Overwrite<T, U extends { [Key in keyof T]?: unknown }> = Omit<
-  T,
-  keyof U
-> & U;
-
