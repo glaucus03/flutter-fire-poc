@@ -5,8 +5,21 @@ rules_version = '2';
 //    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
 service firebase.storage {
   match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read, write: if false;
+    match /images/{imageId}/{allPath=**} {
+      allow read: if request.auth != null 
+      && getData(documentPath["access_permissions","users"])
     }
+
+    function documentPath(paths) {
+    return path([
+      ['databases', '(default)', 'documents'].join('/'),
+      paths.join('/')
+      ].join('/')
+    );
+  }
+
+  function getData(path) {
+    return firestore.get(path).data;
+  }
   }
 }
