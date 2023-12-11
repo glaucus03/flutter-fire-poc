@@ -7,7 +7,7 @@ service firebase.storage {
   match /b/{bucket}/o {
     match /images/{imageId}/{allPath=**} {
       allow read: if request.auth != null 
-      && getData(documentPath["access_permissions","users"])
+      && getData(documentPath["access_permissions",request.auth.uid])
     }
 
     function documentPath(paths) {
